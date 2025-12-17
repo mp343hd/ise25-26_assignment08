@@ -110,6 +110,7 @@ public class ReviewServiceImpl extends CrudServiceImpl<Review, Long> implements 
         return reviewDataService.upsert(finalReview);
     }
 
+
     /**
      * Calculates and updates the approval status of a review based on the approval count.
      * Business rule: A review is approved when it reaches the configured minimum approval count threshold.

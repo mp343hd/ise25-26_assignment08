@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
@@ -172,5 +173,42 @@ public class ReviewServiceTest {
         
         // then
         assertTrue(updatedReview.approved());
+    }
+
+    @Test
+    void approvalIncrementsCountButDoesNotApproveIfQuorumNotReached() {
+        // given
+        // Wir setzen den Count auf 0. Nach dem Aufruf ist er 1.
+        // Wenn minCount > 1 ist (was er laut den anderen Tests ist), bleibt approved = false.
+        Review review = TestFixtures.getReviewFixtures().getFirst().toBuilder()
+                .approvalCount(0)
+                .approved(false)
+                .build();
+        
+        // Ein User, der nicht der Autor ist
+        User user = TestFixtures.getUserFixtures().getLast();
+        
+        assertNotNull(user.getId());
+        when(userDataService.getById(user.getId())).thenReturn(user);
+        
+        assertNotNull(review.getId());
+        when(reviewDataService.getById(review.getId())).thenReturn(review);
+        
+        // Mock für upsert gibt einfach das Objekt zurück, das gespeichert werden soll
+        when(reviewDataService.upsert(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Review resultReview = reviewService.approve(review, user.getId());
+
+        // then
+        verify(userDataService).getById(user.getId());
+        verify(reviewDataService).getById(review.getId());
+        verify(reviewDataService).upsert(any(Review.class));
+
+        // 1. Der Count muss sich erhöht haben (0 -> 1)
+        assertThat(resultReview.approvalCount()).isEqualTo(review.approvalCount() + 1);
+        
+        // 2. WICHTIG: Approved muss immer noch FALSE sein (das löst den Log-Eintrag im else-Zweig aus)
+        assertThat(resultReview.approved()).isFalse();
     }
 }
